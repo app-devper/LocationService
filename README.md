@@ -2,4 +2,4 @@
 
 Location Service
 ===================
-Location Service This library for tacking location.
+Location Service This library for tracking location.
