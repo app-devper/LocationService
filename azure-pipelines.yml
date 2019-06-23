@@ -9,6 +9,9 @@ trigger:
 pool:
   vmImage: 'macos-latest'
 
+variables:
+  - group: BintrayKey
+
 steps:
 - bash: echo This is a script that could use $BINTRAY-USER
   env:
@@ -21,7 +24,6 @@ steps:
     gradleWrapperFile: 'gradlew'
     options: '-Pbintray-user=$(bintray-user) -Pbintray-apikey=$(bintray-apikey)'
     gradleOptions: '-Xmx3072m'
-    javaHomeOption: 'JDKVersion'
     publishJUnitResults: false
     testResultsFiles: '**/TEST-*.xml'
     tasks: 'clean build bintrayUpload'
