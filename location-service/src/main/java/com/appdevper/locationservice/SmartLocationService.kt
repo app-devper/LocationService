@@ -12,17 +12,15 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.OnLifecycleEvent
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import com.google.android.gms.location.LocationRequest
 
-class SmartLocationService internal constructor(
-    private val mActivity: Activity,
-    lifecycle: Lifecycle,
-    callBack: LocationCallBack
-) :
+class SmartLocationService(private val mActivity: Activity, lifecycle: Lifecycle, callBack: LocationCallBack) :
     LifecycleObserver {
 
     private var mLocationPermissionGranted: Boolean = false
     // A reference to the service used to get location updates.
     private var mService: LocationService? = null
+    private var locationRequest: LocationRequest? = null
 
     // Tracks the bound state of the service.
     private var mBound = false
@@ -33,9 +31,16 @@ class SmartLocationService internal constructor(
         override fun onServiceConnected(name: ComponentName, service: IBinder) {
             val binder = service as LocationService.LocalBinder
             mService = binder.service
+
+            if (currentClass != null) {
+                mService?.setCurrentClass(currentClass)
+            } else {
+                mService?.setCurrentClass(mActivity.javaClass)
+            }
+
             mBound = true
             if (mLocationPermissionGranted) {
-                mService!!.requestLocationUpdates()
+                mService!!.requestLocationUpdates(locationRequest)
             }
         }
 
@@ -80,12 +85,11 @@ class SmartLocationService internal constructor(
                 // If request is cancelled, the result arrays are empty.
                 when {
                     grantResults.isEmpty() -> // If user interaction was interrupted, the permission request is cancelled and you
-                        // receive empty arrays.
                         Log.i(TAG, "User interaction was cancelled.")
                     grantResults[0] == PackageManager.PERMISSION_GRANTED -> {
                         // Permission was granted.
                         mLocationPermissionGranted = true
-                        mService!!.requestLocationUpdates()
+                        mService!!.requestLocationUpdates(locationRequest)
                     }
                     else -> {
 
@@ -99,12 +103,25 @@ class SmartLocationService internal constructor(
         if (ContextCompat.checkSelfPermission(mActivity, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             mLocationPermissionGranted = true
         } else {
-            ActivityCompat.requestPermissions(mActivity, arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION), SmartLocationService.PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION)
+            ActivityCompat.requestPermissions(
+                mActivity,
+                arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION),
+                PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION
+            )
         }
+    }
+
+    fun setCurrentClass(current: Class<*>?) {
+        currentClass = current
+    }
+
+    fun setLocationRequest(locationRequest: LocationRequest) {
+        this.locationRequest = locationRequest
     }
 
     companion object {
         private val TAG = SmartLocationService::class.java.simpleName
+        private var currentClass: Class<*>? = null
         const val PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 248
     }
 

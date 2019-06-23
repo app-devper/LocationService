@@ -12,7 +12,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager
 
 import com.google.android.gms.location.*
 
-abstract class LocationService : Service() {
+class LocationService : Service() {
 
     private val mBinder = LocalBinder()
     private var mChangingConfiguration = false
@@ -21,16 +21,48 @@ abstract class LocationService : Service() {
     private var mLocationCallback: LocationCallback? = null
     private var mServiceHandler: Handler? = null
     private var mLocation: Location? = null
-    var mLocationRequest: LocationRequest? = null
-    var name = "Smart Location Service"
-    var pendingIntent: PendingIntent? = null
+    private var mLocationRequest: LocationRequest? = null
+    private val name: String
+        get() {
+            val appName: String
+            val applicationInfo = this.applicationInfo
+            val stringId = applicationInfo.labelRes
+            appName = if (stringId == 0) {
+                applicationInfo.nonLocalizedLabel.toString()
+            } else {
+                this.getString(stringId)
+            }
+            return appName
+        }
+
+    private val mainActivityClass: Class<*>?
+        get() {
+            val packageName = packageName
+            val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+            val className = launchIntent!!.component!!.className
+            return try {
+                Class.forName(className)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            }
+        }
 
     private val notification: Notification
         get() {
             return NotificationCompat.Builder(this, CHANNEL_ID).run {
-                pendingIntent?.let {
-                    setContentIntent(pendingIntent)
+                var intentClass = mainActivityClass
+                if (currentClass != null) {
+                    intentClass = currentClass as Class<*>
                 }
+                val pendingIntent =
+                    PendingIntent.getActivity(
+                        this@LocationService,
+                        0,
+                        Intent(this@LocationService, intentClass),
+                        PendingIntent.FLAG_UPDATE_CURRENT
+                    )
+                setContentIntent(pendingIntent)
                 setContentText("On Tracking GPS")
                 setContentTitle(name)
                 setOngoing(true)
@@ -118,7 +150,10 @@ abstract class LocationService : Service() {
         mServiceHandler!!.removeCallbacksAndMessages(null)
     }
 
-    fun requestLocationUpdates() {
+    fun requestLocationUpdates(locationRequest: LocationRequest?) {
+        locationRequest?.let {
+            mLocationRequest = it
+        }
         Log.i(TAG, "Requesting location updates")
         LocationHelper.setRequestingLocationUpdates(this, true)
         startService(Intent(applicationContext, LocationService::class.java))
@@ -175,28 +210,25 @@ abstract class LocationService : Service() {
         }
     }
 
+    fun setCurrentClass(current: Class<*>?) {
+        currentClass = current
+    }
+
     inner class LocalBinder : Binder() {
         val service: LocationService
             get() = this@LocationService
     }
 
     companion object {
-
         private const val PACKAGE_NAME = "com.smartlocation.service"
-
         private val TAG = LocationService::class.java.simpleName
-
         private const val CHANNEL_ID = "channel_01"
-
+        private var currentClass: Class<*>? = null
         const val ACTION_BROADCAST = "$PACKAGE_NAME.broadcast"
-
         const val EXTRA_LOCATION = "$PACKAGE_NAME.location"
         const val EXTRA_STARTED_FROM_NOTIFICATION = "$PACKAGE_NAME.started_from_notification"
-
         private const val UPDATE_INTERVAL_IN_MILLISECONDS: Long = 10000
-
         private const val FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS = UPDATE_INTERVAL_IN_MILLISECONDS / 2
-
         private const val NOTIFICATION_ID = 12345678
     }
 }
