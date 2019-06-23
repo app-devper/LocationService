@@ -10,7 +10,7 @@ pool:
   vmImage: 'macos-latest'
 
 variables:
-  - group: BintrayKey
+- group: BintrayKey
 
 steps:
 - bash: echo This is a script that could use $BINTRAY-USER
